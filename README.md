@@ -330,3 +330,8 @@ Google OAuth is only triggered when the user clicks "Add to Google Calendar" —
 ---
 
 *Built for the AI Engineer take-home assignment — March 2026*
+<img width="1899" height="949" alt="Screenshot 2026-03-22 213234" src="https://github.com/user-attachments/assets/774b52d7-e0c2-439c-9f78-d94dfe9a314f" />
+<img width="1912" height="958" alt="Screenshot 2026-03-22 213254" src="https://github.com/user-attachments/assets/6fd1df8a-df2c-409b-8fa6-2bd37372d616" />
+<img width="1919" height="1030" alt="Screenshot 2026-03-22 213307" src="https://github.com/user-attachments/assets/5d1f8890-d981-426c-87a1-a2bc6d1ff51a" />
+
+
