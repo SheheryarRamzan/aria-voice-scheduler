@@ -5,20 +5,38 @@ import "./App.css";
 const API_BASE = process.env.REACT_APP_API_URL || "";
 const DEEPGRAM_API_KEY = process.env.REACT_APP_DEEPGRAM_API_KEY || "";
 
-// ─── TTS: browser speech synthesis ───────────────────────────────────────────
+// ─── TTS — waits for voices to load before speaking ──────────────────────────
 const speak = (text, onEnd) => {
   if (!window.speechSynthesis) return onEnd?.();
   window.speechSynthesis.cancel();
+
   const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.95; utter.pitch = 1.05; utter.volume = 1;
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v =>
-    v.name.includes("Samantha") || v.name.includes("Karen") ||
-    v.name.includes("Google US English") || v.lang === "en-US"
-  );
-  if (preferred) utter.voice = preferred;
+  utter.rate = 0.92;
+  utter.pitch = 1.05;
+  utter.volume = 1;
   utter.onend = onEnd;
-  window.speechSynthesis.speak(utter);
+
+  const doSpeak = () => {
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      v.name.includes("Samantha") ||
+      v.name.includes("Karen") ||
+      v.name.includes("Google US English") ||
+      (v.lang === "en-US" && !v.name.includes("zira") && !v.name.includes("David"))
+    );
+    if (preferred) utter.voice = preferred;
+    window.speechSynthesis.speak(utter);
+  };
+
+  // Voices may not be ready on first call — wait for them
+  if (window.speechSynthesis.getVoices().length > 0) {
+    doSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.onvoiceschanged = null;
+      doSpeak();
+    };
+  }
 };
 
 // ─── Waveform ─────────────────────────────────────────────────────────────────
@@ -94,45 +112,82 @@ export default function App() {
     return params.get("sessionId") || uuidv4();
   });
 
-  const [messages, setMessages]           = useState([]);
-  const [input, setInput]                 = useState("");
-  const [listening, setListening]         = useState(false);
-  const [speaking, setSpeaking]           = useState(false);
-  const [loading, setLoading]             = useState(false);
-  const [started, setStarted]             = useState(false);
-  const [mode, setMode]                   = useState("text");
+  const [messages, setMessages]             = useState([]);
+  const [input, setInput]                   = useState("");
+  const [listening, setListening]           = useState(false);
+  const [speaking, setSpeaking]             = useState(false);
+  const [loading, setLoading]               = useState(false);
+  const [started, setStarted]               = useState(false);
+  const [mode, setMode]                     = useState("voice"); // default voice
   const [liveTranscript, setLiveTranscript] = useState("");
-  const [pendingEvent, setPendingEvent]   = useState(null);
-  const [creatingEvent, setCreatingEvent] = useState(false);
-  const [createdEvent, setCreatedEvent]   = useState(null);
+  const [pendingEvent, setPendingEvent]     = useState(null);
+  const [creatingEvent, setCreatingEvent]   = useState(false);
+  const [createdEvent, setCreatedEvent]     = useState(null);
   const [calendarAuthed, setCalendarAuthed] = useState(false);
 
-  // Deepgram STT refs
-  const socketRef    = useRef(null);
-  const mediaRecRef  = useRef(null);
-  const streamRef    = useRef(null);
-  const finalRef     = useRef("");
+  // Deepgram refs
+  const socketRef   = useRef(null);
+  const mediaRecRef = useRef(null);
+  const streamRef   = useRef(null);
+  const finalRef    = useRef("");
+  // Keep latest mode in ref so callbacks always see current value
+  const modeRef     = useRef("voice");
 
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // ─── On mount: handle OAuth return + preload voices ─────────────────────────
   useEffect(() => {
+    // Preload voices immediately
+    window.speechSynthesis?.getVoices();
+
     const params = new URLSearchParams(window.location.search);
     if (params.get("authed") === "true") {
       setCalendarAuthed(true);
       window.history.replaceState({}, "", window.location.pathname);
+
+      // Auto-start if we came from the start button
+      const savedMode = sessionStorage.getItem("aria_mode") || "voice";
+      if (sessionStorage.getItem("aria_autostart") === "1") {
+        sessionStorage.removeItem("aria_autostart");
+        setMode(savedMode);
+        modeRef.current = savedMode;
+        setStarted(true);
+        setLoading(true);
+
+        fetch(`${API_BASE}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, message: "[START]" }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            addMessage("assistant", data.message);
+            // Speak the greeting in voice mode
+            if (savedMode === "voice") {
+              setSpeaking(true);
+              speak(data.message, () => setSpeaking(false));
+            }
+          })
+          .catch(() => addMessage("assistant", "Hello! I'm Aria. What's your name?"))
+          .finally(() => setLoading(false));
+      }
     }
-    window.speechSynthesis?.getVoices();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addMessage = useCallback((role, content) => {
     setMessages(prev => [...prev, { role, content, id: uuidv4() }]);
   }, []);
 
-  // ─── Send to Gemini backend ───────────────────────────────────────────────
+  // ─── Send message to backend ─────────────────────────────────────────────────
   const sendMessage = useCallback(async (text) => {
     if (!text.trim() || loading) return;
     addMessage("user", text);
@@ -147,7 +202,8 @@ export default function App() {
       const data = await res.json();
       addMessage("assistant", data.message);
       if (data.calendarEvent) setPendingEvent(data.calendarEvent);
-      if (mode === "voice") {
+      // Use modeRef so this always reflects current mode even in closures
+      if (modeRef.current === "voice") {
         setSpeaking(true);
         speak(data.message, () => setSpeaking(false));
       }
@@ -156,9 +212,9 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [sessionId, loading, addMessage, mode]);
+  }, [sessionId, loading, addMessage]);
 
-  // ─── Stop mic + Deepgram socket ───────────────────────────────────────────
+  // ─── Stop Deepgram mic ───────────────────────────────────────────────────────
   const stopListening = useCallback(() => {
     if (mediaRecRef.current?.state !== "inactive") mediaRecRef.current?.stop();
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -166,7 +222,7 @@ export default function App() {
     setListening(false);
   }, []);
 
-  // ─── Start Deepgram STT ───────────────────────────────────────────────────
+  // ─── Start Deepgram STT ──────────────────────────────────────────────────────
   const startListening = useCallback(async () => {
     if (!DEEPGRAM_API_KEY) {
       alert("Add REACT_APP_DEEPGRAM_API_KEY to frontend/.env");
@@ -181,50 +237,23 @@ export default function App() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Use whatever encoding the browser supports
-      const mimeType =
-        MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" :
-        MediaRecorder.isTypeSupported("audio/webm")             ? "audio/webm" :
-        MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")  ? "audio/ogg;codecs=opus" : "";
-
-      // const encoding =
-      //   mimeType.includes("ogg") ? "ogg-opus" :
-      //   mimeType.includes("webm") ? "webm" : "linear16";
-
-      // // Build Deepgram URL — key in query param (most reliable auth method)
-      // const url =
-      //   `wss://api.deepgram.com/v1/listen` +
-      //   `?model=nova-2` +
-      //   `&language=en-US` +
-      //   `&smart_format=true` +
-      //   `&interim_results=true` +
-      //   `&utterance_end_ms=1200` +
-      //   `&endpointing=400` +
-      //   (encoding !== "linear16" ? `&encoding=${encoding}` : `&encoding=linear16&sample_rate=16000`) +
-      //   `&channels=1` +
-      //   `&token=${DEEPGRAM_API_KEY}`;
-
       const url =
-      `wss://api.deepgram.com/v1/listen` +
-      `?model=nova-2` +
-      `&language=en-US` +
-      `&smart_format=true` +
-      `&interim_results=true` +
-      `&utterance_end_ms=1200` +
-      `&endpointing=400` +
-      `&channels=1`;
+        `wss://api.deepgram.com/v1/listen` +
+        `?model=nova-2` +
+        `&language=en-US` +
+        `&smart_format=true` +
+        `&interim_results=true` +
+        `&utterance_end_ms=1200` +
+        `&endpointing=400` +
+        `&channels=1`;
 
-      // const ws = new WebSocket(url);
       const ws = new WebSocket(url, ["token", DEEPGRAM_API_KEY]);
       socketRef.current = ws;
 
       ws.onopen = () => {
         setListening(true);
-        // Use default MediaRecorder format (no mimeType override — most compatible)
-        // const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
         const rec = new MediaRecorder(stream);
         mediaRecRef.current = rec;
-
         rec.ondataavailable = e => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
         };
@@ -237,8 +266,6 @@ export default function App() {
       ws.onmessage = evt => {
         try {
           const msg = JSON.parse(evt.data);
-
-          // UtteranceEnd → submit whatever we have
           if (msg.type === "UtteranceEnd") {
             const final = finalRef.current.trim();
             setLiveTranscript("");
@@ -246,19 +273,14 @@ export default function App() {
             if (final) { sendMessage(final); stopListening(); }
             return;
           }
-
           if (msg.type !== "Results") return;
           const transcript = msg.channel?.alternatives?.[0]?.transcript;
           if (!transcript) return;
-
           if (msg.is_final) {
             finalRef.current += (finalRef.current ? " " : "") + transcript;
             setLiveTranscript(finalRef.current);
           } else {
-            // Show interim words live as user speaks
-            setLiveTranscript(
-              finalRef.current + (finalRef.current ? " " : "") + transcript
-            );
+            setLiveTranscript(finalRef.current + (finalRef.current ? " " : "") + transcript);
           }
         } catch { /* non-JSON frame */ }
       };
@@ -277,7 +299,19 @@ export default function App() {
     }
   }, [listening, speaking, loading, sendMessage, stopListening]);
 
-  const startConversation = useCallback(async () => {
+  // ─── Start conversation ──────────────────────────────────────────────────────
+  const startConversation = useCallback(async (chosenMode = "voice") => {
+    setMode(chosenMode);
+    modeRef.current = chosenMode;
+
+    // Trigger Google OAuth at start so conflict checking works
+    if (!calendarAuthed) {
+      sessionStorage.setItem("aria_autostart", "1");
+      sessionStorage.setItem("aria_mode", chosenMode);
+      window.location.href = `${API_BASE}/auth/google?sessionId=${sessionId}`;
+      return;
+    }
+
     setStarted(true);
     setLoading(true);
     try {
@@ -288,15 +322,19 @@ export default function App() {
       });
       const data = await res.json();
       addMessage("assistant", data.message);
-      if (mode === "voice") { setSpeaking(true); speak(data.message, () => setSpeaking(false)); }
+      // Speak greeting if in voice mode
+      if (chosenMode === "voice") {
+        setSpeaking(true);
+        speak(data.message, () => setSpeaking(false));
+      }
     } catch {
       addMessage("assistant", "Hello! I'm Aria, your scheduling assistant. What's your name?");
     } finally {
       setLoading(false);
     }
-  }, [sessionId, addMessage, mode]);
+  }, [sessionId, addMessage, calendarAuthed]);
 
-  // ─── Calendar ─────────────────────────────────────────────────────────────
+  // ─── Calendar event creation ─────────────────────────────────────────────────
   const handleCreateEvent = useCallback(async () => {
     const isDemoMode = process.env.REACT_APP_DEMO_MODE === "true";
     if (!calendarAuthed && !isDemoMode) {
@@ -315,7 +353,12 @@ export default function App() {
       if (data.success) {
         setCreatedEvent({ link: data.eventLink, summary: data.summary });
         setPendingEvent(null);
-        addMessage("assistant", `Done! "${data.summary}" has been added to your Google Calendar.`);
+        const msg = `Done! "${data.summary}" has been added to your Google Calendar.`;
+        addMessage("assistant", msg);
+        if (modeRef.current === "voice") {
+          setSpeaking(true);
+          speak(msg, () => setSpeaking(false));
+        }
       } else {
         addMessage("assistant", "Couldn't create the event. " + (data.error || "Please try again."));
       }
@@ -331,7 +374,7 @@ export default function App() {
     sendMessage("Let me change the details.");
   }, [sendMessage]);
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="app">
       <div className="bg-orbs">
@@ -363,9 +406,14 @@ export default function App() {
               <span>📅 Google Calendar</span>
               <span>⚡ Instant booking</span>
             </div>
-            <button className="btn-start" onClick={startConversation}>
-              Start Scheduling
-            </button>
+            <div className="landing-btns">
+              <button className="btn-start" onClick={() => startConversation("voice")}>
+                🎙 Start with Voice
+              </button>
+              <button className="btn-start btn-start-text" onClick={() => startConversation("text")}>
+                ⌨️ Start with Text
+              </button>
+            </div>
           </div>
         ) : (
           <>
