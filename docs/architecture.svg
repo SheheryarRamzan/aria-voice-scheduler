@@ -1,0 +1,105 @@
+<svg viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#6c8aff" opacity="0.7"/>
+    </marker>
+    <marker id="arrow-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#34d399" opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="480" fill="#080c14" rx="12"/>
+
+  <!-- Title -->
+  <text x="400" y="36" fill="#e0e6f5" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0.5">Aria Voice Scheduler — Architecture</text>
+
+  <!-- ── Browser Layer ── -->
+  <rect x="20" y="60" width="760" height="130" rx="10" fill="none" stroke="#6c8aff" stroke-width="1" stroke-dasharray="6,4" opacity="0.4"/>
+  <text x="36" y="80" fill="#6c8aff" font-size="11" font-weight="600" opacity="0.7">BROWSER (Client)</text>
+
+  <!-- React App -->
+  <rect x="40" y="88" width="160" height="88" rx="8" fill="#161e2e" stroke="#6c8aff" stroke-width="1" opacity="0.9"/>
+  <text x="120" y="113" fill="#6c8aff" font-size="12" font-weight="700" text-anchor="middle">React App</text>
+  <text x="120" y="132" fill="#8896b0" font-size="10" text-anchor="middle">Session management</text>
+  <text x="120" y="148" fill="#8896b0" font-size="10" text-anchor="middle">Chat UI + Event card</text>
+  <text x="120" y="164" fill="#8896b0" font-size="10" text-anchor="middle">OAuth redirect handler</text>
+
+  <!-- Web Speech STT -->
+  <rect x="220" y="88" width="150" height="88" rx="8" fill="#161e2e" stroke="#a78bfa" stroke-width="1" opacity="0.9"/>
+  <text x="295" y="113" fill="#a78bfa" font-size="12" font-weight="700" text-anchor="middle">Web Speech API</text>
+  <text x="295" y="132" fill="#8896b0" font-size="10" text-anchor="middle">SpeechRecognition</text>
+  <text x="295" y="148" fill="#8896b0" font-size="10" text-anchor="middle">(STT — mic input)</text>
+  <text x="295" y="164" fill="#8896b0" font-size="10" text-anchor="middle">SpeechSynthesis (TTS)</text>
+
+  <!-- Mode toggle note -->
+  <rect x="388" y="88" width="152" height="88" rx="8" fill="#161e2e" stroke="#34d399" stroke-width="1" opacity="0.9"/>
+  <text x="464" y="113" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">Text / Voice Mode</text>
+  <text x="464" y="132" fill="#8896b0" font-size="10" text-anchor="middle">Toggle in header</text>
+  <text x="464" y="148" fill="#8896b0" font-size="10" text-anchor="middle">Voice = STT + TTS</text>
+  <text x="464" y="164" fill="#8896b0" font-size="10" text-anchor="middle">Text = keyboard input</text>
+
+  <!-- Session ID -->
+  <rect x="558" y="88" width="202" height="88" rx="8" fill="#161e2e" stroke="#f59e0b" stroke-width="1" opacity="0.9"/>
+  <text x="659" y="113" fill="#f59e0b" font-size="12" font-weight="700" text-anchor="middle">Session (UUID)</text>
+  <text x="659" y="132" fill="#8896b0" font-size="10" text-anchor="middle">Unique per browser tab</text>
+  <text x="659" y="148" fill="#8896b0" font-size="10" text-anchor="middle">Passed via URL on OAuth</text>
+  <text x="659" y="164" fill="#8896b0" font-size="10" text-anchor="middle">callback to restore state</text>
+
+  <!-- Arrow: Browser → Backend -->
+  <line x1="280" y1="210" x2="280" y2="248" stroke="#6c8aff" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)" opacity="0.6"/>
+  <text x="292" y="233" fill="#6c8aff" font-size="10" opacity="0.8">HTTP / REST</text>
+
+  <!-- ── Backend Layer ── -->
+  <rect x="20" y="258" width="760" height="130" rx="10" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="6,4" opacity="0.4"/>
+  <text x="36" y="278" fill="#a78bfa" font-size="11" font-weight="600" opacity="0.7">EXPRESS.JS BACKEND (Node 20)</text>
+
+  <!-- /api/chat -->
+  <rect x="40" y="286" width="175" height="88" rx="8" fill="#161e2e" stroke="#6c8aff" stroke-width="1"/>
+  <text x="128" y="308" fill="#6c8aff" font-size="11" font-weight="700" text-anchor="middle">/api/chat</text>
+  <text x="128" y="326" fill="#8896b0" font-size="10" text-anchor="middle">Maintains history</text>
+  <text x="128" y="342" fill="#8896b0" font-size="10" text-anchor="middle">Calls Claude API</text>
+  <text x="128" y="358" fill="#8896b0" font-size="10" text-anchor="middle">Extracts &lt;CALENDAR_EVENT&gt;</text>
+
+  <!-- /auth/google -->
+  <rect x="230" y="286" width="175" height="88" rx="8" fill="#161e2e" stroke="#f59e0b" stroke-width="1"/>
+  <text x="317" y="308" fill="#f59e0b" font-size="11" font-weight="700" text-anchor="middle">/auth/google</text>
+  <text x="317" y="326" fill="#8896b0" font-size="10" text-anchor="middle">OAuth2 URL gen</text>
+  <text x="317" y="342" fill="#8896b0" font-size="10" text-anchor="middle">Token exchange</text>
+  <text x="317" y="358" fill="#8896b0" font-size="10" text-anchor="middle">Stores tokens in session</text>
+
+  <!-- /api/create-event -->
+  <rect x="420" y="286" width="175" height="88" rx="8" fill="#161e2e" stroke="#34d399" stroke-width="1"/>
+  <text x="507" y="308" fill="#34d399" font-size="11" font-weight="700" text-anchor="middle">/api/create-event</text>
+  <text x="507" y="326" fill="#8896b0" font-size="10" text-anchor="middle">Reads pending event</text>
+  <text x="507" y="342" fill="#8896b0" font-size="10" text-anchor="middle">Calls Calendar API</text>
+  <text x="507" y="358" fill="#8896b0" font-size="10" text-anchor="middle">Returns event link</text>
+
+  <!-- Session store -->
+  <rect x="610" y="286" width="150" height="88" rx="8" fill="#161e2e" stroke="#8896b0" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="685" y="308" fill="#8896b0" font-size="11" font-weight="700" text-anchor="middle">Session Store</text>
+  <text x="685" y="326" fill="#8896b0" font-size="10" text-anchor="middle">In-memory (Map)</text>
+  <text x="685" y="342" fill="#8896b0" font-size="10" text-anchor="middle">history, tokens,</text>
+  <text x="685" y="358" fill="#8896b0" font-size="10" text-anchor="middle">pendingEvent</text>
+
+  <!-- ── External Services ── -->
+  <!-- Anthropic -->
+  <rect x="60" y="426" width="170" height="42" rx="8" fill="#1c1033" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="145" y="444" fill="#a78bfa" font-size="12" font-weight="700" text-anchor="middle">Anthropic Claude</text>
+  <text x="145" y="460" fill="#8896b0" font-size="10" text-anchor="middle">claude-sonnet-4</text>
+
+  <!-- Google Calendar -->
+  <rect x="310" y="426" width="200" height="42" rx="8" fill="#0d1f14" stroke="#34d399" stroke-width="1.5"/>
+  <text x="410" y="444" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">Google Calendar API v3</text>
+  <text x="410" y="460" fill="#8896b0" font-size="10" text-anchor="middle">OAuth2 · calendar.events.insert</text>
+
+  <!-- Google OAuth -->
+  <rect x="580" y="426" width="160" height="42" rx="8" fill="#1a1400" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="660" y="444" fill="#f59e0b" font-size="12" font-weight="700" text-anchor="middle">Google OAuth2</text>
+  <text x="660" y="460" fill="#8896b0" font-size="10" text-anchor="middle">accounts.google.com</text>
+
+  <!-- Connector arrows: Backend → External -->
+  <line x1="128" y1="374" x2="145" y2="424" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrow)" opacity="0.6"/>
+  <line x1="507" y1="374" x2="450" y2="424" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-g)" opacity="0.6"/>
+  <line x1="317" y1="374" x2="630" y2="424" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow)" opacity="0.5"/>
+</svg>

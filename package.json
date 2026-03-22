@@ -1,0 +1,14 @@
+{
+  "name": "aria-voice-scheduler",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI voice scheduling agent — books Google Calendar events via natural conversation",
+  "scripts": {
+    "setup": "bash scripts/setup.sh",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "test": "node scripts/test-integration.js",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
+  }
+}
