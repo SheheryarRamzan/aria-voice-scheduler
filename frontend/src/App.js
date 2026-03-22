@@ -351,7 +351,7 @@ export default function App() {
       });
       const data = await res.json();
       if (data.success) {
-        setCreatedEvent({ link: data.eventLink, summary: data.summary });
+        setCreatedEvent({ link: data.eventLink, summary: data.summary, start: data.start });
         setPendingEvent(null);
         const msg = `Done! "${data.summary}" has been added to your Google Calendar.`;
         addMessage("assistant", msg);
@@ -433,10 +433,23 @@ export default function App() {
                 <EventCard event={pendingEvent} onConfirm={handleCreateEvent}
                   onCancel={handleCancelEvent} creating={creatingEvent} created={false} />
               )}
-              {createdEvent && (
-                <EventCard event={{ title: createdEvent.summary }}
-                  created={true} eventLink={createdEvent.link} />
-              )}
+              {createdEvent && (() => {
+                // Parse start datetime safely avoiding timezone shift
+                let evDate = null, evTime = null;
+                if (createdEvent.start) {
+                  const s = createdEvent.start;
+                  // s is like "2026-03-23T20:00:00+03:00"
+                  evDate = s.slice(0, 10);
+                  evTime = s.slice(11, 16);
+                }
+                return (
+                  <EventCard
+                    event={{ title: createdEvent.summary, date: evDate, time: evTime }}
+                    created={true}
+                    eventLink={createdEvent.link}
+                  />
+                );
+              })()}
             </div>
 
             <div className="input-area">
