@@ -8,7 +8,7 @@ A real-time AI voice assistant that books Google Calendar events through natural
 
 ## 🚀 Live Demo
 
-**Deployed URL:** `https://aria-voice-scheduler.vercel.app` *(update after deployment)*
+**Deployed URL:** `[https://aria-voice-scheduler.vercel.app](https://aria-build.vercel.app/)` *(update after deployment)*
 
 > **Quick test (no Google auth needed):** Set `REACT_APP_DEMO_MODE=true` in `frontend/.env` to skip OAuth and simulate event creation.
 
